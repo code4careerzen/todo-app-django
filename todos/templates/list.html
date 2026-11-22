@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Todos</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 480px; margin: 50px auto; padding: 0 20px; background: #f9fafb; color: #111827; }
+        .card { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+        button:hover { background: #1d4ed8; }
+        .btn-danger { background: #ef4444; padding: 6px 10px; font-size: 12px; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #6b7280; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .todo-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+        .completed { text-decoration: line-through; color: #9ca3af; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <h2 style="margin: 0;">My Todos</h2>
+            <button onclick="logout()" class="btn-secondary">Logout</button>
+        </div>
+
+        <form id="todo-form" style="display: flex; gap: 8px; margin-bottom: 20px;">
+            <input type="text" id="new-todo" placeholder="What needs to be done?" required>
+            <button type="submit">Add</button>
+        </form>
+
+        <div id="todo-list"></div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        // Redirect to login page if no token exists
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
+
+        async function apiFetch(endpoint, options = {}) {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json', ...options.headers };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+            if (response.status === 401) {
+                logout();
+                throw new Error('Unauthorized');
+            }
+            return response;
+        }
+
+        async function loadTodos() {
+            const res = await apiFetch('/todos');
+            const todos = await res.json();
+            const list = document.getElementById('todo-list');
+            
+            list.innerHTML = todos.length ? '' : '<p style="color: #6b7280;">No todos yet.</p>';
+            todos.forEach(todo => {
+                const row = document.createElement('div');
+                row.className = 'todo-row';
+                row.innerHTML = `
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" ${todo.completed ? 'checked' : ''} 
+                            onchange="toggleTodo(${todo.id}, '${todo.title.replace(/'/g, "\\'")}', this.checked)">
+                        <span class="${todo.completed ? 'completed' : ''}">${todo.title}</span>
+                    </label>
+                    <button class="btn-danger" onclick="deleteTodo(${todo.id})">Delete</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        document.getElementById('todo-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('new-todo');
+            await apiFetch('/todos', {
+                method: 'POST',
+                body: JSON.stringify({ title: input.value, completed: false })
+            });
+            input.value = '';
+            loadTodos();
+        });
+
+        async function toggleTodo(id, title, completed) {
+            await apiFetch(`/todos/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ title, completed })
+            });
+            loadTodos();
+        }
+
+        async function deleteTodo(id) {
+            await apiFetch(`/todos/${id}`, { method: 'DELETE' });
+            loadTodos();
+        }
+
+        loadTodos();
+    </script>
+</body>
+</html>

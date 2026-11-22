@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Todo App</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 400px; margin: 60px auto; padding: 0 20px; background: #f9fafb; color: #111827; }
+        .card { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 10px; margin: 8px 0 16px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+        button:hover { background: #1d4ed8; }
+        .error { color: #dc2626; font-size: 14px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Sign In</h2>
+        <div id="login-error" class="error"></div>
+        <form id="login-form">
+            <label>Username</label>
+            <input type="text" id="username" value="admin" required>
+            <label>Password</label>
+            <input type="password" id="password" value="secret123" required>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <script>
+        // If already logged in, skip straight to the list page
+        if (localStorage.getItem('token')) {
+            window.location.href = '/todos/';
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.textContent = '';
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('token', data.access_token);
+                window.location.href = '/todos/';
+            } else {
+                errorDiv.textContent = 'Invalid username or password.';
+            }
+        });
+    </script>
+</body>
+</html>
